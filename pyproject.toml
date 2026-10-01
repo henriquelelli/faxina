@@ -1,0 +1,20 @@
+[project]
+name = "faxina"
+version = "0.1.0"
+description = "Limpeza periódica e determinística de espaço em disco no macOS, com relatório em HTML."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+faxina = "faxina.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["faxina"]
+
+[tool.setuptools.package-data]
+faxina = ["modelo.html"]

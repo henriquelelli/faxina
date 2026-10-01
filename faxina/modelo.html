@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{titulo_pagina}}</title>
+<style>
+:root {
+  --papel: #e9eef1;
+  --folha: #ffffff;
+  --tinta: #1c2b33;
+  --tinta-suave: #5b6b73;
+  --linha: #cfd8de;
+  --anil: #2f3fcf;
+  --anil-fundo: #e4e8ff;
+  --usado: #3b4b54;
+  --antes: #c3ced5;
+  --livre: #dfe6ea;
+  --erro: #b42318;
+  --erro-fundo: #fdecea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papel: #0e141a;
+    --folha: #17212a;
+    --tinta: #e4ebef;
+    --tinta-suave: #93a3ac;
+    --linha: #2c3a45;
+    --anil: #93a0ff;
+    --anil-fundo: #1f2652;
+    --usado: #a9bac3;
+    --antes: #3a4955;
+    --livre: #24323d;
+    --erro: #ff9b8f;
+    --erro-fundo: #3a1c1a;
+  }
+}
+:root[data-theme="dark"] {
+  --papel: #0e141a;
+  --folha: #17212a;
+  --tinta: #e4ebef;
+  --tinta-suave: #93a3ac;
+  --linha: #2c3a45;
+  --anil: #93a0ff;
+  --anil-fundo: #1f2652;
+  --usado: #a9bac3;
+  --antes: #3a4955;
+  --livre: #24323d;
+  --erro: #ff9b8f;
+  --erro-fundo: #3a1c1a;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: "Avenir Next", Avenir, "Helvetica Neue", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.cond { font-family: "Avenir Next Condensed", "Avenir Next", Avenir, "Helvetica Neue", system-ui, sans-serif; }
+
+.folha {
+  max-width: 720px;
+  margin: 40px auto 56px;
+  background: var(--folha);
+  padding: 44px 56px 40px;
+  border-radius: 4px;
+  box-shadow: 0 1px 0 var(--linha), 0 18px 40px -28px rgba(28, 43, 51, .45);
+}
+
+/* cabeçalho */
+.marca {
+  margin: 0 0 28px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--anil);
+}
+h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+}
+.contexto { margin: 6px 0 0; color: var(--tinta-suave); max-width: 60ch; }
+.aviso {
+  margin: 20px 0 0;
+  padding: 10px 14px;
+  border-left: 3px solid var(--anil);
+  background: var(--anil-fundo);
+  border-radius: 0 4px 4px 0;
+}
+
+/* disco */
+.disco { margin: 40px 0 8px; }
+.numero {
+  margin: 0;
+  font-size: 72px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.numero-legenda { margin: 6px 0 22px; color: var(--tinta-suave); }
+.barra {
+  display: flex;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--livre);
+}
+.seg { width: var(--w); flex: none; }
+.seg.antes { background: var(--antes); }
+.seg.liberado {
+  background: var(--anil);
+  transform-origin: left center;
+  animation: encher .9s cubic-bezier(.2, .7, .2, 1) .25s both;
+}
+.seg.liberado.previsto {
+  background: repeating-linear-gradient(-45deg, var(--anil) 0 6px, var(--anil-fundo) 6px 10px);
+}
+@keyframes encher { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .seg.liberado { animation: none; } }
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--tinta-suave);
+}
+.legenda li { display: flex; align-items: center; gap: 8px; }
+.barra-resumo { margin: 10px 0 0; font-size: 14px; color: var(--tinta-suave); max-width: 60ch; }
+.legenda b { color: var(--tinta); font-weight: 600; font-variant-numeric: tabular-nums; }
+.amostra { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.amostra.antes { background: var(--antes); }
+.amostra.liberado { background: var(--anil); }
+
+/* itens no estilo de nota de serviço */
+h2 {
+  margin: 48px 0 14px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.grupo + .grupo { margin-top: 26px; }
+.regua {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.pontos {
+  flex: 1;
+  min-width: 24px;
+  border-bottom: 2px dotted var(--linha);
+  transform: translateY(-4px);
+}
+.valor {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.grupo-titulo {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--linha);
+}
+.linhas { list-style: none; margin: 0; padding: 0; }
+.linha { padding: 10px 0 10px 14px; border-bottom: 1px solid var(--linha); }
+.linha:last-child { border-bottom: none; }
+.linha-nome { font-weight: 500; overflow-wrap: anywhere; }
+.linha .valor { font-weight: 500; }
+.linha-caminho {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--tinta-suave);
+  overflow-wrap: anywhere;
+}
+.linha-detalhe { margin: 2px 0 0; font-size: 14px; color: var(--tinta-suave); }
+.estimado { font-weight: 400; color: var(--tinta-suave); }
+
+.total {
+  margin-top: 22px;
+  padding-top: 12px;
+  border-top: 3px double var(--tinta);
+  font-size: 20px;
+  font-weight: 600;
+}
+.total .valor { color: var(--anil); font-size: 25px; }
+.total-nota { margin: 8px 0 0; font-size: 14px; color: var(--tinta-suave); max-width: 60ch; }
+
+.vazio { margin: 0; color: var(--tinta-suave); max-width: 60ch; }
+
+/* erros */
+.erros .linha { border-left: 3px solid var(--erro); background: var(--erro-fundo); border-bottom: none; margin-bottom: 8px; border-radius: 0 4px 4px 0; }
+.erros .linha-detalhe { color: var(--tinta); }
+
+/* picote: separa o que foi feito do canhoto de consulta */
+.picote {
+  position: relative;
+  height: 0;
+  margin: 52px -56px 40px;
+  border-top: 2px dashed var(--linha);
+}
+.picote::before, .picote::after {
+  content: "";
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--papel);
+}
+.picote::before { left: -11px; }
+.picote::after { right: -11px; }
+
+/* canhoto */
+details { border-bottom: 1px solid var(--linha); }
+summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  list-style-position: inside;
+}
+summary:focus-visible { outline: 2px solid var(--anil); outline-offset: 3px; border-radius: 3px; }
+details .linhas { padding-bottom: 8px; }
+
+.historico { list-style: none; margin: 0; padding: 0; }
+.historico li {
+  display: grid;
+  grid-template-columns: 9.5em 1fr 5.5em;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.historico .data { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.historico .trilho { height: 8px; border-radius: 4px; background: var(--livre); overflow: hidden; }
+.historico .trilho span { display: block; height: 100%; width: var(--w); background: var(--usado); border-radius: 4px; }
+.historico .atual .trilho span { background: var(--anil); }
+.historico .atual .data { color: var(--tinta); font-weight: 600; }
+.historico .valor { text-align: right; font-weight: 500; }
+
+.regras { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 14px; }
+.regras dt { color: var(--tinta-suave); }
+.regras dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .folha { margin: 0; padding: 28px 16px 32px; border-radius: 0; box-shadow: none; }
+  .numero { font-size: 56px; }
+  .picote { margin: 44px -16px 32px; }
+  .picote::before, .picote::after { display: none; }
+  .historico li { grid-template-columns: 7.5em 1fr 4.8em; gap: 10px; }
+  .regras { grid-template-columns: 1fr; gap: 0; }
+  .regras dd { margin-bottom: 8px; }
+}
+</style>
+</head>
+<body>
+<main class="folha">
+  <header>
+    <p class="marca">faxina</p>
+    <h1>{{titulo}}</h1>
+    <p class="contexto">{{contexto}}</p>
+    {{aviso}}
+  </header>
+
+  <section class="disco" aria-label="Espaço em disco">
+    <p class="numero cond">{{numero}}</p>
+    <p class="numero-legenda">{{numero_legenda}}</p>
+    {{barra}}
+  </section>
+
+  <section aria-labelledby="titulo-itens">
+    <h2 id="titulo-itens">{{titulo_itens}}</h2>
+    {{grupos}}
+  </section>
+
+  {{erros}}
+
+  <div class="picote" aria-hidden="true"></div>
+
+  {{mantidos}}
+
+  <section aria-labelledby="titulo-historico">
+    <h2 id="titulo-historico">Faxinas anteriores</h2>
+    {{historico}}
+  </section>
+
+  <section aria-labelledby="titulo-regras">
+    <h2 id="titulo-regras">Regras desta faxina</h2>
+    {{regras}}
+  </section>
+</main>
+<script type="application/json" id="faxina-dados">{{dados}}</script>
+</body>
+</html>

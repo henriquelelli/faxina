@@ -1,0 +1,86 @@
+# Configuração da faxina. Copie para ~/.config/faxina/config.toml e ajuste.
+# Nada é apagado se não estiver descrito aqui. Chaves desconhecidas dão erro.
+# Caminhos aceitam ~ e variáveis de ambiente ($HOME).
+
+# Intervalo mínimo entre duas faxinas automáticas.
+intervalo_dias = 15
+# Abre o relatório no navegador e mostra uma notificação ao terminar.
+abrir_relatorio = true
+notificar = true
+# relatorios_dir = "~/.local/share/faxina/relatorios"
+# estado_dir = "~/.local/state/faxina"
+
+
+# ---------------------------------------------------------------------------
+# Projetos parados: apaga pastas que dá para reconstruir (dependências e
+# builds) em projetos sem nenhum arquivo alterado há `dias_sem_uso` dias.
+# Nunca apaga se: falta o arquivo exigido (lockfile), algum processo está com
+# a pasta do projeto aberta, ou o caminho casa com um padrão de `ignorar`.
+[projetos]
+raizes = ["~/Projetos"]
+dias_sem_uso = 14
+profundidade_maxima = 6
+# Padrões no estilo shell; * casa qualquer trecho, inclusive barras.
+ignorar = ["*/projeto-que-nunca-deve-ser-limpo"]
+# A busca não entra nestas pastas (as regeneráveis abaixo já ficam de fora).
+nao_entrar = [".git", ".venv", "venv", "__pycache__", ".Trash"]
+
+[[projetos.regeneraveis]]
+nome = "Dependências Node"
+pasta = "node_modules"
+exige_um_destes = ["package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "bun.lock", "bun.lockb"]
+
+[[projetos.regeneraveis]]
+nome = "Build do Next.js"
+pasta = ".next"
+exige_um_destes = ["package.json"]
+
+# [[projetos.regeneraveis]]
+# nome = "Ambiente Python"
+# pasta = ".venv"
+# exige_um_destes = ["uv.lock", "poetry.lock", "requirements.txt", "pyproject.toml"]
+
+
+# ---------------------------------------------------------------------------
+# Comandos de limpeza das próprias ferramentas. São pulados se o programa não
+# estiver instalado ou se a `condicao` falhar. `medir` são as pastas cujo
+# tamanho antes e depois mostra quanto o comando liberou.
+[[comandos]]
+nome = "Homebrew"
+comando = ["brew", "cleanup", "--prune=all"]
+medir = ["~/Library/Caches/Homebrew"]
+
+[[comandos]]
+nome = "npm"
+comando = ["npm", "cache", "clean", "--force"]
+medir = ["~/.npm/_cacache"]
+
+[[comandos]]
+nome = "pip"
+comando = ["pip3", "cache", "purge"]
+medir = ["~/Library/Caches/pip"]
+
+# [[comandos]]
+# nome = "Docker: imagens sem uso"
+# comando = ["docker", "image", "prune", "--all", "--force"]
+# condicao = ["docker", "info"]
+
+
+# ---------------------------------------------------------------------------
+# Pastas esvaziadas por inteiro (a pasta em si fica). Precisam estar dentro da
+# sua pasta pessoal e a pelo menos dois níveis dela. Com `idade_minima_dias`,
+# só apaga o que não foi modificado nesse período.
+[[pastas]]
+nome = "Atualizações baixadas do VS Code"
+caminho = "~/Library/Caches/com.microsoft.VSCode.ShipIt"
+idade_minima_dias = 7
+
+
+# ---------------------------------------------------------------------------
+# Repositórios git que acumulam objetos soltos (por exemplo, os que recebem
+# commits automáticos). Roda `git repack -a -d`, que junta tudo num pacote sem
+# descartar nenhum objeto.
+# [[git]]
+# nome = "Repositório com commits automáticos"
+# caminho = "~/caminho/do/repositorio"
+# min_objetos_soltos = 5000
