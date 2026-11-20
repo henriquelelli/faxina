@@ -33,7 +33,10 @@ def caminho_da_config(informado: str | None) -> Path:
 class Regeneravel:
     nome: str
     pasta: str
+    # nomes ou padrões no estilo shell (ex.: *.csproj)
     exige_um_destes: tuple[str, ...] = ()
+    # False: o arquivo exigido precisa estar na mesma pasta, não numa de cima
+    procurar_acima: bool = True
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,7 @@ class Pasta:
     nome: str
     caminho: Path
     idade_minima_dias: int = 0
+    manter_mais_recentes: int = 0
 
 
 @dataclass(frozen=True)
@@ -197,11 +201,14 @@ def _projetos(t: dict | None) -> Projetos:
     regras = []
     for i, r in enumerate(_tabelas(t, "regeneraveis"), 1):
         c = f"[[projetos.regeneraveis]] nº {i}"
-        _conferir_chaves(r, {"nome", "pasta", "exige_um_destes"}, c)
+        _conferir_chaves(r, {"nome", "pasta", "exige_um_destes", "procurar_acima"}, c)
         pasta = _texto(r, "pasta", c)
         if "/" in pasta or pasta in {".", ".."}:
             raise ConfigInvalida(f"{c}: 'pasta' é só o nome da pasta (ex.: node_modules), sem barras")
-        regras.append(Regeneravel(_texto(r, "nome", c), pasta, _textos(r, "exige_um_destes", c)))
+        regras.append(Regeneravel(
+            _texto(r, "nome", c), pasta, _textos(r, "exige_um_destes", c),
+            _booleano(r, "procurar_acima", c, True),
+        ))
     raizes = tuple(expandir(r) for r in _textos(t, "raizes", ctx))
     for r in raizes:
         if r == Path(r.anchor):
@@ -219,10 +226,13 @@ def _projetos(t: dict | None) -> Projetos:
 
 def _pasta(t: dict, i: int) -> Pasta:
     c = f"[[pastas]] nº {i}"
-    _conferir_chaves(t, {"nome", "caminho", "idade_minima_dias"}, c)
+    _conferir_chaves(t, {"nome", "caminho", "idade_minima_dias", "manter_mais_recentes"}, c)
     caminho = expandir(_texto(t, "caminho", c))
     _exigir_pasta_segura(caminho, c)
-    return Pasta(_texto(t, "nome", c), caminho, _inteiro(t, "idade_minima_dias", c, 0))
+    return Pasta(
+        _texto(t, "nome", c), caminho, _inteiro(t, "idade_minima_dias", c, 0),
+        _inteiro(t, "manter_mais_recentes", c, 0),
+    )
 
 
 def _comando(t: dict, i: int) -> Comando:

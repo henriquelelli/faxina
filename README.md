@@ -12,19 +12,20 @@ Tudo vem do arquivo de configuração. O que não está descrito lá não é toc
 |---|---|
 | Projetos parados | Apaga pastas regeneráveis (`node_modules`, `.next`, `.venv`…) de projetos sem nenhum arquivo alterado há N dias |
 | Caches de ferramentas | Roda os comandos de limpeza das próprias ferramentas (`brew cleanup`, `npm cache clean`, `docker image prune`…) |
-| Pastas de cache | Esvazia pastas de cache, opcionalmente só o que tem mais de N dias |
+| Pastas de cache | Esvazia pastas de cache, opcionalmente só o que tem mais de N dias ou mantendo os N itens mais recentes |
 | Repositórios git | Junta objetos soltos num pacote com `git repack -a -d`, sem descartar nenhum objeto |
 
 ## Como ela decide
 
 - **Determinística.** Mesma configuração, mesmo disco e mesmo momento levam às mesmas decisões. Os candidatos são percorridos em ordem alfabética, e as regras são fixas e ficam visíveis no relatório.
-- **Projeto parado** é aquele sem nenhum arquivo modificado há `dias_sem_uso` dias. Os arquivos dentro das próprias pastas regeneráveis não contam.
+- **Projeto parado** é aquele sem nenhum arquivo modificado há `dias_sem_uso` dias. Os arquivos dentro das próprias pastas regeneráveis não contam, nem o `.DS_Store`, que o Finder grava só por abrir a pasta.
 - **Nunca apaga:**
-  - uma pasta regenerável sem o arquivo que permite reconstruí-la (por exemplo, `node_modules` sem lockfile). O lockfile pode estar numa pasta acima, como em monorepos;
+  - uma pasta regenerável sem o arquivo que permite reconstruí-la (por exemplo, `node_modules` sem lockfile). O lockfile pode estar numa pasta acima, como em monorepos, a menos que a regra use `procurar_acima = false`. O arquivo exigido também pode ser um padrão, como `*.csproj` para o `bin` do .NET;
   - um projeto que algum processo está usando como pasta de trabalho (consultado via `lsof`). Se o `lsof` falhar, nenhum projeto é apagado;
   - links simbólicos, nem nada fora das raízes e pastas configuradas;
   - pastas de cache fora da sua pasta pessoal ou a menos de dois níveis dela.
 - **Comandos** são pulados se o programa não estiver instalado ou se a `condicao` configurada falhar (por exemplo, `docker info` com o Docker parado).
+- **Idade em pastas de cache** é a do arquivo mais novo de cada item. Uma subpasta com um único arquivo recente não é apagada.
 
 ## Instalação
 
@@ -99,7 +100,7 @@ Os tamanhos são os blocos realmente ocupados em disco (`st_blocks`), em unidade
 
 ## Agendamento
 
-`instalar` cria `~/Library/LaunchAgents/io.github.faxina.plist`. O launchd chama a faxina todo dia no horário escolhido, ou ao acordar, se o Mac estava dormindo nessa hora. A própria faxina confere se já passou `intervalo_dias` desde a última execução, e assim o intervalo não se perde com reinícios.
+`instalar` cria `~/Library/LaunchAgents/io.github.faxina.plist`. O launchd chama a faxina todo dia no horário escolhido, ou ao acordar, se o Mac estava dormindo nessa hora. A própria faxina confere se já passaram `intervalo_dias` dias desde a última execução, e assim o intervalo não se perde com reinícios. A conta é em dias, não em horas: no dia certo ela roda, mesmo que o disparo venha alguns segundos antes do horário gravado pela anterior.
 
 O launchd começa com um `PATH` mínimo. Por isso, `instalar` grava o `PATH` de quem rodou o comando, para que `brew`, `npm`, `docker` etc. sejam encontrados. Se instalar ferramentas novas em outras pastas, rode `instalar` de novo. O log fica em `~/.local/state/faxina/faxina.log`.
 

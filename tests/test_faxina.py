@@ -5,11 +5,12 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
 from faxina import config, relatorio
-from faxina.cli import faxinar
+from faxina.cli import _proxima, faxinar
 from faxina.config import Comando, ConfigInvalida, Pasta, Projetos, Regeneravel, RepoGit
 from faxina.disco import RemocaoRecusada, formatar_bytes, tamanho_em_disco, verificar_remocao
 from faxina.tarefas import (
@@ -76,6 +77,12 @@ class TestProjetos(unittest.TestCase):
         escrever(p / "node_modules" / "recente.js", "1", idade_dias=0)
         self.assertEqual(self.rodar()["instalado"].situacao, LIMPO)
 
+    def test_ds_store_do_finder_nao_conta_como_uso(self):
+        p = projeto(self.raiz, "aberto-no-finder", idade=60)
+        escrever(p / ".DS_Store", "finder", 0)
+        escrever(p / "src" / ".DS_Store", "finder", 0)
+        self.assertEqual(self.rodar()["aberto-no-finder"].situacao, LIMPO)
+
     def test_sem_lockfile_nao_apaga(self):
         projeto(self.raiz, "sem-lock", idade=60, lock=False)
         r = self.rodar()["sem-lock"]
@@ -87,6 +94,20 @@ class TestProjetos(unittest.TestCase):
         escrever(self.raiz / "mono" / "apps" / "web" / "package.json", "{}", 60)
         escrever(self.raiz / "mono" / "apps" / "web" / "node_modules" / "a.js", "1", 60)
         self.assertEqual(self.rodar()["web"].situacao, LIMPO)
+
+    def test_build_dotnet_exige_csproj_na_mesma_pasta(self):
+        bin_ = Regeneravel("Build do .NET", "bin", ("*.csproj",), procurar_acima=False)
+        cfg = Projetos(ativo=True, raizes=(self.raiz,), regeneraveis=(bin_,))
+        escrever(self.raiz / "app" / "App.csproj", "<Project/>", 60)
+        escrever(self.raiz / "app" / "bin" / "Release" / "App.dll", "0" * 10_000, 60)
+        # `scripts/bin` está abaixo de um .csproj, mas não ao lado dele
+        escrever(self.raiz / "app" / "scripts" / "bin" / "deploy.sh", "echo", 60)
+        r = self.rodar(cfg=cfg)
+        self.assertEqual(r["app"].situacao, LIMPO)
+        self.assertFalse((self.raiz / "app" / "bin").exists())
+        self.assertEqual(r["scripts"].situacao, MANTIDO)
+        self.assertIn("*.csproj", r["scripts"].detalhe)
+        self.assertTrue((self.raiz / "app" / "scripts" / "bin" / "deploy.sh").exists())
 
     def test_processo_aberto_no_projeto_impede(self):
         p = projeto(self.raiz, "em-uso", idade=60)
@@ -145,6 +166,23 @@ class TestPastasEComandos(unittest.TestCase):
         self.assertFalse((cache / "velho").exists())
         self.assertTrue((cache / "novo.bin").exists())
         self.assertIn("1 recentes mantidos", r.detalhe)
+
+    def test_subpasta_com_arquivo_recente_nao_e_velha(self):
+        cache = self.base / "cache"
+        escrever(cache / "sessao" / "antigo.log", "x", 30)
+        escrever(cache / "sessao" / "hoje.log", "x", 0)
+        r = limpar_pastas((Pasta("Cache", cache, idade_minima_dias=7),), False, AGORA)[0]
+        self.assertEqual(r.situacao, MANTIDO)
+        self.assertTrue((cache / "sessao" / "antigo.log").exists())
+
+    def test_manter_as_versoes_mais_recentes(self):
+        versoes = self.base / "releases"
+        for nome, idade in (("1.0", 90), ("1.1", 60), ("1.2", 30), ("1.3", 10)):
+            escrever(versoes / nome / "bin" / "app", "0" * 10_000, idade)
+        r = limpar_pastas((Pasta("Versões", versoes, manter_mais_recentes=2),), False, AGORA)[0]
+        self.assertEqual(r.situacao, LIMPO)
+        self.assertEqual(sorted(p.name for p in versoes.iterdir()), ["1.2", "1.3"])
+        self.assertIn("2 recentes mantidos", r.detalhe)
 
     def test_pasta_inexistente_fica_como_mantida(self):
         r = limpar_pastas((Pasta("Nada", self.base / "nao-existe"),), False, AGORA)[0]
@@ -230,6 +268,12 @@ class TestSeguranca(unittest.TestCase):
                 config.interpretar({"projetos": {"raizes": ["/"]}}, origem)
             ok = config.interpretar({"pastas": [{"nome": "x", "caminho": "~/Library/Caches/x"}]}, origem)
             self.assertEqual(ok.pastas[0].caminho, Path(casa) / "Library" / "Caches" / "x")
+            with self.assertRaises(ConfigInvalida):
+                config.interpretar({"pastas": [{"nome": "x", "caminho": "~/Library/Caches/x",
+                                                "manter_mais_recentes": -1}]}, origem)
+            with self.assertRaises(ConfigInvalida):
+                config.interpretar({"projetos": {"regeneraveis": [
+                    {"nome": "x", "pasta": "bin", "procurar_acima": "nao"}]}}, origem)
 
     def test_exemplo_do_repositorio_e_valido(self):
         exemplo = Path(__file__).resolve().parent.parent / "config.exemplo.toml"
@@ -278,6 +322,15 @@ class TestRelatorio(unittest.TestCase):
             relatorio.preencher("<p>{{a}}</p>", {"a": "1", "b": "2"})
         with self.assertRaises(ValueError):
             relatorio.preencher("<p>{{a}}{{c}}</p>", {"a": "1"})
+
+
+class TestIntervalo(unittest.TestCase):
+    def test_conta_dias_e_nao_segundos(self):
+        # a anterior gravou 11:00:06; o launchd dispara às 11:00:00 do 15º dia
+        cfg = config.Config(origem=Path("c.toml"), intervalo_dias=15)
+        proxima = _proxima(cfg, {"ultima_execucao": "2026-10-02T11:00:06-03:00"})
+        self.assertLessEqual(proxima, datetime.fromisoformat("2026-10-17T11:00:00-03:00"))
+        self.assertGreater(proxima, datetime.fromisoformat("2026-10-16T23:59:59-03:00"))
 
 
 class TestPontaAPonta(unittest.TestCase):

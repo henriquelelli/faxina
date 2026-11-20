@@ -38,10 +38,14 @@ def _notificar(titulo: str, texto: str) -> None:
 
 
 def _proxima(cfg: Config, estado: dict) -> datetime | None:
+    """Início do dia em que a próxima faxina pode rodar. O intervalo conta em
+    dias, não em segundos: o launchd dispara na hora cheia, e a execução
+    anterior gravou o horário alguns segundos depois dela."""
     ultima = estado.get("ultima_execucao")
     if not ultima:
         return None
-    return datetime.fromisoformat(ultima) + timedelta(days=cfg.intervalo_dias)
+    dia = datetime.fromisoformat(ultima) + timedelta(days=cfg.intervalo_dias)
+    return dia.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def faxinar(cfg: Config, simular: bool) -> dict:

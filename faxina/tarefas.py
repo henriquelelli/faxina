@@ -131,7 +131,8 @@ def encontrar_candidatos(cfg: Projetos) -> list[tuple[Path, Path, Regeneravel]]:
 
 def ultima_alteracao(projeto: Path, excluir: set[str], limite: float) -> float:
     """Maior data de modificação de arquivo do projeto, sem entrar nas pastas
-    de `excluir`. Para assim que acha um arquivo mais novo que `limite`: a essa
+    de `excluir` e sem contar o .DS_Store, que o Finder grava só por abrir a
+    pasta. Para assim que acha um arquivo mais novo que `limite`: a essa
     altura já se sabe que o projeto está em uso."""
     maior = 0.0
     pilha = [projeto]
@@ -147,6 +148,8 @@ def ultima_alteracao(projeto: Path, excluir: set[str], limite: float) -> float:
                     if e.name not in excluir:
                         pilha.append(Path(e.path))
                     continue
+                if e.name == ".DS_Store":
+                    continue
                 m = e.stat(follow_symlinks=False).st_mtime
             except OSError:
                 continue
@@ -157,15 +160,28 @@ def ultima_alteracao(projeto: Path, excluir: set[str], limite: float) -> float:
     return maior
 
 
-def _marcador(projeto: Path, raiz: Path, nomes: tuple[str, ...]) -> Path | None:
-    """Procura um dos arquivos `nomes` no projeto ou acima dele, até a raiz
-    (cobre monorepos com o lockfile na pasta de cima)."""
+def _arquivo(pasta: Path, nome: str) -> Path | None:
+    """O arquivo `nome` da pasta, ou o primeiro (em ordem alfabética) que casa
+    com ele, se `nome` for um padrão como *.csproj."""
+    if not any(c in nome for c in "*?["):
+        return pasta / nome if (pasta / nome).is_file() else None
+    try:
+        nomes = sorted(e.name for e in os.scandir(pasta)
+                       if e.is_file() and fnmatch.fnmatchcase(e.name, nome))
+    except OSError:
+        return None
+    return pasta / nomes[0] if nomes else None
+
+
+def _marcador(projeto: Path, raiz: Path, nomes: tuple[str, ...], acima: bool = True) -> Path | None:
+    """Procura um dos arquivos `nomes` no projeto e, com `acima`, nas pastas
+    acima dele até a raiz (cobre monorepos com o lockfile na pasta de cima)."""
     p = projeto
     while True:
         for n in nomes:
-            if (p / n).is_file():
-                return p / n
-        if p == raiz or p.parent == p or not p.is_relative_to(raiz):
+            if achado := _arquivo(p, n):
+                return achado
+        if not acima or p == raiz or p.parent == p or not p.is_relative_to(raiz):
             return None
         p = p.parent
 
@@ -189,7 +205,9 @@ def limpar_projetos(
         )
         if padrao:
             r.detalhe = f"ignorado pela configuração ({padrao})"
-        elif regra.exige_um_destes and not _marcador(projeto, raiz, regra.exige_um_destes):
+        elif regra.exige_um_destes and not _marcador(
+            projeto, raiz, regra.exige_um_destes, regra.procurar_acima
+        ):
             r.detalhe = "sem " + " / ".join(regra.exige_um_destes) + ": não daria para reconstruir"
         elif processos is None:
             r.detalhe = "não foi possível verificar os processos abertos (lsof)"
@@ -298,12 +316,24 @@ def limpar_pastas(pastas: tuple[Pasta, ...], simular: bool, agora: float) -> lis
         except OSError as e:
             r.situacao, r.detalhe = ERRO, f"não foi possível ler a pasta: {e.strerror or e}"
             continue
+        # A data de uma subpasta é a do arquivo mais novo dentro dela: a da
+        # própria pasta só muda quando entra ou sai algo no primeiro nível.
+        # Para ordenar (manter_mais_recentes) precisa da data exata; para só
+        # comparar com o limite, basta achar um arquivo mais novo que ele.
+        ate = float("inf") if p.manter_mais_recentes else limite
+        datadas: list[tuple[float, os.DirEntry]] = []
         for e in entradas:
             try:
                 m = e.stat(follow_symlinks=False).st_mtime
+                if (p.idade_minima_dias or p.manter_mais_recentes) and e.is_dir(follow_symlinks=False):
+                    m = max(m, ultima_alteracao(Path(e.path), set(), ate))
             except OSError:
                 continue
-            if p.idade_minima_dias and m >= limite:
+            datadas.append((m, e))
+        mais_recentes = {e.name for _, e in sorted(datadas, key=lambda d: (-d[0], d[1].name))
+                         [:p.manter_mais_recentes]}
+        for m, e in datadas:
+            if e.name in mais_recentes or (p.idade_minima_dias and m >= limite):
                 mantidos += 1
                 continue
             alvo = Path(e.path)

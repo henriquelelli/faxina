@@ -40,6 +40,22 @@ exige_um_destes = ["package.json"]
 # pasta = ".venv"
 # exige_um_destes = ["uv.lock", "poetry.lock", "requirements.txt", "pyproject.toml"]
 
+# `exige_um_destes` aceita padrões como *.csproj. Por padrão o arquivo pode
+# estar numa pasta acima (monorepos); com `procurar_acima = false` ele precisa
+# estar ao lado da pasta regenerável. Isso importa para nomes genéricos como
+# `bin`, que também são usados para guardar scripts.
+# [[projetos.regeneraveis]]
+# nome = "Build do .NET (bin)"
+# pasta = "bin"
+# exige_um_destes = ["*.csproj", "*.fsproj", "*.vbproj"]
+# procurar_acima = false
+#
+# [[projetos.regeneraveis]]
+# nome = "Build do .NET (obj)"
+# pasta = "obj"
+# exige_um_destes = ["*.csproj", "*.fsproj", "*.vbproj"]
+# procurar_acima = false
+
 
 # ---------------------------------------------------------------------------
 # Comandos de limpeza das próprias ferramentas. São pulados se o programa não
@@ -65,15 +81,31 @@ medir = ["~/Library/Caches/pip"]
 # comando = ["docker", "image", "prune", "--all", "--force"]
 # condicao = ["docker", "info"]
 
+# Volumes anônimos sem contêiner. Do Docker 23 em diante, os volumes com nome
+# só saem com --all. Um contêiner de `docker run --rm` derrubado com
+# `docker rm -f` sem `-v` deixa o volume anônimo para trás.
+# [[comandos]]
+# nome = "Docker: volumes órfãos"
+# comando = ["docker", "volume", "prune", "--force"]
+# condicao = ["docker", "info"]
+
 
 # ---------------------------------------------------------------------------
 # Pastas esvaziadas por inteiro (a pasta em si fica). Precisam estar dentro da
 # sua pasta pessoal e a pelo menos dois níveis dela. Com `idade_minima_dias`,
-# só apaga o que não foi modificado nesse período.
+# só apaga o que não foi modificado nesse período (numa subpasta, vale o
+# arquivo mais novo dentro dela). Com `manter_mais_recentes = N`, os N itens
+# mais recentes ficam sempre, qualquer que seja a idade.
 [[pastas]]
 nome = "Atualizações baixadas do VS Code"
 caminho = "~/Library/Caches/com.microsoft.VSCode.ShipIt"
 idade_minima_dias = 7
+
+# Pasta com uma subpasta por versão: fica a atual e a anterior.
+# [[pastas]]
+# nome = "Versões antigas do Codex"
+# caminho = "~/.codex/packages/app-server-daemon/releases"
+# manter_mais_recentes = 2
 
 
 # ---------------------------------------------------------------------------
